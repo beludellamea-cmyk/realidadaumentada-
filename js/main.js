@@ -82,16 +82,40 @@ async function iniciar() {
 /* ---------- Eventos de detección ---------- */
 
 const visibles = new Set();
+const cerrados = new Set();     // fotos cuyo video se cerró: no se reabre hasta que la foto salga de cuadro
+let videoActual = null;         // nombre de la foto cuyo video está abierto
+
 escena.addEventListener('targetFound', (e) => {         // el evento sube (bubbles) desde cada ancla
-  visibles.add(e.target.dataset.nombre);
+  const nombre = e.target.dataset.nombre, src = e.target.dataset.video;
+  visibles.add(nombre);
+  if (src && !ui.reproductorAbierto() && !cerrados.has(nombre)) {
+    videoActual = nombre;
+    navigator.vibrate?.(30);
+    ui.mostrarReproductor(nombre, src);                  // el video se ve a pantalla completa
+    return;
+  }
+  if (ui.reproductorAbierto()) return;
   ui.mostrarBuscando(false);
   ui.mostrarDetectado([...visibles].join(' + '));
 });
 escena.addEventListener('targetLost', (e) => {
-  visibles.delete(e.target.dataset.nombre);
+  const nombre = e.target.dataset.nombre;
+  visibles.delete(nombre);
+  cerrados.delete(nombre);
+  if (ui.reproductorAbierto()) return;                   // el video sigue aunque se pierda la foto
   ui.mostrarDetectado([...visibles].join(' + '));
   if (visibles.size === 0) ui.mostrarBuscando(true);
 });
+
+ui.alCerrarReproductor(() => {
+  ui.cerrarReproductor();
+  if (videoActual && visibles.has(videoActual)) cerrados.add(videoActual);
+  videoActual = null;
+  ui.mostrarDetectado([...visibles].join(' + '));
+  ui.mostrarBuscando(visibles.size === 0);
+  if (visibles.size === 0) ui.mostrarAviso('Apuntá la cámara a otra foto.', 3000);
+});
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && ui.reproductorAbierto()) document.getElementById('rep-cerrar').click(); });
 
 /* Ahorro de batería: pausamos la cámara y el tracking cuando la pestaña no está visible. */
 document.addEventListener('visibilitychange', () => {

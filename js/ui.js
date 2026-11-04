@@ -47,3 +47,37 @@ export function alReintentar(fn) { $('btn-reintentar').addEventListener('click',
 export function alIniciar(fn) { $('btn-iniciar').addEventListener('click', fn); }
 
 export function alSalir(fn) { $('btn-salir').addEventListener('click', fn); }
+
+/* ---------- Reproductor de video a pantalla completa ---------- */
+
+export function reproductorAbierto() { return !$('reproductor').hidden; }
+
+/** Abre el video a pantalla completa. Intenta con sonido; si el navegador lo impide, arranca en silencio y avisa. */
+export function mostrarReproductor(titulo, src) {
+  const v = $('rep-video'), nota = $('rep-nota'), espera = $('rep-espera');
+  $('rep-titulo').textContent = titulo;
+  nota.textContent = '';
+  espera.hidden = false;
+  $('visor').hidden = true; $('chip').hidden = true;
+  $('reproductor').hidden = false;
+  v.onplaying = () => { espera.hidden = true; };
+  v.onwaiting = () => { espera.hidden = false; };
+  v.onerror = () => { espera.hidden = true; nota.textContent = 'No se pudo cargar el video. Revisá tu conexión y volvé a intentar.'; };
+  v.muted = false;
+  v.src = src;
+  v.play().catch(() => {
+    v.muted = true;
+    nota.textContent = 'Tocá el video para activar el sonido.';
+    v.play().catch(() => { espera.hidden = true; });
+  });
+  v.onvolumechange = () => { if (!v.muted) nota.textContent = ''; };
+  $('rep-cerrar').focus({ preventScroll: true });
+}
+
+export function cerrarReproductor() {
+  const v = $('rep-video');
+  v.pause(); v.removeAttribute('src'); v.load();       // libera memoria y datos
+  $('reproductor').hidden = true;
+}
+
+export function alCerrarReproductor(fn) { $('rep-cerrar').addEventListener('click', fn); }

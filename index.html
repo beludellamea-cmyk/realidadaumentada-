@@ -90,6 +90,20 @@
     <p>Buscando la imagen…</p>
   </div>
 
+  <!-- Reproductor: el video se ve a pantalla completa del celular o tablet, sin depender de sostener la cámara -->
+  <section id="reproductor" hidden role="dialog" aria-modal="true" aria-labelledby="rep-titulo">
+    <div class="rep-barra">
+      <h2 id="rep-titulo"></h2>
+      <button id="rep-cerrar" class="rep-cerrar" type="button">✕ Cerrar</button>
+    </div>
+    <div class="rep-marco">
+      <video id="rep-video" playsinline loop controls preload="auto"></video>
+      <div id="rep-espera" class="spinner" aria-hidden="true"></div>
+    </div>
+    <p id="rep-nota" role="status"></p>
+    <p class="rep-giro">Girá el celular para ver el video más grande.</p>
+  </section>
+
   <button id="btn-salir" type="button" hidden aria-label="Salir de la cámara">✕ Salir</button>
   <div id="chip" hidden role="status"></div>
   <div id="aviso" hidden role="status"></div>

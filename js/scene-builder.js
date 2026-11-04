@@ -48,33 +48,6 @@ function crearModelo(c) {
   return el;
 }
 
-function crearVideo(c, ancla) {
-  const video = document.createElement('video');
-  video.src = c.src;
-  video.loop = true;
-  video.muted = true;               // arranca en silencio: los navegadores bloquean autoplay con sonido
-  video.playsInline = true;         // evita que iOS lo abra a pantalla completa
-  video.setAttribute('webkit-playsinline', '');
-  video.preload = 'metadata';       // no descarga todo hasta que haga falta (ahorra datos y memoria)
-  document.getElementById('medios').appendChild(video);
-  ancla.videos.push(video);
-
-  const ancho = c.ancho ?? 1;
-  const plano = crear('a-plane', { width: ancho, height: ancho * 9 / 16, position: c.posicion ?? '0 0 0.02', class: 'clickable', tocable: 'accion: video' });
-  plano.setAttribute('material', { shader: 'flat', src: video }); // 'flat' = sin cálculo de luces, más liviano
-  plano.videoEl = video;
-  // El alto del plano sigue la proporción real del video (no todos son 16:9).
-  video.addEventListener('loadedmetadata', () => {
-    if (video.videoWidth) plano.setAttribute('height', ancho * video.videoHeight / video.videoWidth);
-  });
-  conAparicion(plano, '1 1 1');
-  video.addEventListener('error', () => {
-    plano.setAttribute('material', { shader: 'flat', src: '', color: '#333333' });
-    mostrarAviso(`No se pudo cargar el video: ${c.src}`);
-  });
-  return plano;
-}
-
 function crearTexto(c) {
   const pos = vec(c.posicion ?? '0 0.4 0.1');
   const el = crear('a-text', {
@@ -101,7 +74,7 @@ function crearTarjeta(c) {
   return grupo;
 }
 
-const CREADORES = { modelo: crearModelo, video: crearVideo, texto: crearTexto, tarjeta: crearTarjeta };
+const CREADORES = { modelo: crearModelo, texto: crearTexto, tarjeta: crearTarjeta };
 
 /* ---------- Construcción de la escena ---------- */
 
@@ -113,6 +86,8 @@ export function construirEscena(escena, targets) {
     ancla.videos = [];
 
     for (const c of t.contenido) {
+      // El video no se dibuja sobre la imagen: se abre a pantalla completa (ver main.js y ui.js).
+      if (c.tipo === 'video') { ancla.dataset.video = c.src; continue; }
       const crearFn = CREADORES[c.tipo];
       if (!crearFn) { console.warn(`Tipo de contenido desconocido: "${c.tipo}"`); continue; }
       ancla.appendChild(crearFn(c, ancla));
