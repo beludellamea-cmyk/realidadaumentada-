@@ -63,6 +63,10 @@ function crearVideo(c, ancla) {
   const plano = crear('a-plane', { width: ancho, height: ancho * 9 / 16, position: c.posicion ?? '0 0 0.02', class: 'clickable', tocable: 'accion: video' });
   plano.setAttribute('material', { shader: 'flat', src: video }); // 'flat' = sin cálculo de luces, más liviano
   plano.videoEl = video;
+  // El alto del plano sigue la proporción real del video (no todos son 16:9).
+  video.addEventListener('loadedmetadata', () => {
+    if (video.videoWidth) plano.setAttribute('height', ancho * video.videoHeight / video.videoWidth);
+  });
   conAparicion(plano, '1 1 1');
   video.addEventListener('error', () => {
     plano.setAttribute('material', { shader: 'flat', src: '', color: '#333333' });

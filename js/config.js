@@ -22,15 +22,21 @@ const conVideo = (nombre, archivo) => ({
   contenido: [{ tipo: 'video', src: `assets/videos/${archivo}.mp4`, ancho: 1, posicion: '0 0 0.02' }]
 });
 
+/** Foto que todavía no tiene video: muestra un cartel "Muy pronto" (sin tildes: la tipografía de A-Frame no las dibuja). */
+const sinVideo = (nombre) => ({
+  nombre,
+  contenido: [{ tipo: 'tarjeta', titulo: 'Muy pronto', detalle: 'Pronto vas a ver\nun video de esta foto.', posicion: '0 0 0.05' }]
+});
+
 export const TARGETS = [
   conVideo('Puente en construcción', 'puente-en-construccion'),   // imagen-01
   conVideo('Puente',                 'puente'),                   // imagen-02
-  conVideo('Río',                    'rio'),                      // imagen-03
+  sinVideo('Pasarela colgante'),                                  // imagen-03 (sin video todavía)
   conVideo('Gente de El Colorado',   'gente-de-el-colorado'),     // imagen-04
   conVideo('Balsa',                  'balsa'),                    // imagen-05
   conVideo('Acto en la plaza',       'acto-en-la-plaza'),         // imagen-06
-  conVideo('Canoas en el río',       'canoas-en-el-rio'),         // imagen-07
+  conVideo('Canoas en el río',       'canoas-en-el-rio'),         // imagen-07  (también hay: canoas-pasando.mp4 y rio.mp4)
   conVideo('Giroldi',                'giroldi'),                  // imagen-08
-  conVideo('Canoas pasando',         'canoas-pasando'),           // imagen-09
+  sinVideo('Puente sobre el río'),                                // imagen-09 (sin video todavía)
   conVideo('Gente en el puente',     'gente-en-el-puente')        // imagen-10
 ];
