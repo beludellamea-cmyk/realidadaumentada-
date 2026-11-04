@@ -2,7 +2,9 @@
 
 > Usa el mismo diseño que Humanos digitales (ciudad futurista, logos de `img/`).
 > Una vez publicado en GitHub Pages queda en `https://beludellamea-cmyk.github.io/realidadaumentada-/`.
-> **Para que funcione falta `assets/targets/targets.mind`** (se genera con tus imágenes, ver paso 1).
+> `assets/targets/targets.mind` ya está generado con las 10 fotos de `assets/images/` (imagen-01 … imagen-10).
+> **Faltan los 10 videos** en `assets/videos/` con estos nombres exactos: `puente-en-construccion.mp4`, `puente.mp4`, `rio.mp4`,
+> `gente-de-el-colorado.mp4`, `balsa.mp4`, `acto-en-la-plaza.mp4`, `canoas-en-el-rio.mp4`, `giroldi.mp4`, `canoas-pasando.mp4`, `gente-en-el-puente.mp4`.
 
 App de realidad aumentada web que reconoce de 1 a 3 imágenes con la cámara del celular y superpone contenido digital (modelo 3D, video, texto flotante, tarjeta informativa). Sin build, sin instalar nada: HTML/CSS/JS puro, listo para GitHub Pages.
 
