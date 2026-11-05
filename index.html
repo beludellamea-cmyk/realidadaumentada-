@@ -5,57 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0a1b1f">
   <title>Realidad aumentada | IA El Colorado · Expo de Ciencias 2026</title>
-  <meta name="description" content="Apuntá la cámara de tu celular a las imágenes de la muestra y mirá cómo cobran vida con realidad aumentada.">
-  <link rel="stylesheet" href="css/styles.css">
-
-  <!-- Librerías por CDN, con versión fija (reproducible). El orden importa: A-Frame primero. -->
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
-  <!-- Nuestro código: módulos ES nativos (sin build). -->
-  <script type="module" src="js/main.js"></script>
+  <meta name="description" content="Abrí el lente, apuntalo a las fotos impresas y mirá cómo cobran vida con realidad aumentada.">
+  <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
 
-  <!-- Escenario: ciudad futurista (se oculta cuando la cámara está activa) -->
+  <!-- Escenario: ciudad futurista (se apaga cuando la cámara está activa) -->
   <div class="escena" aria-hidden="true">
-    <div class="fondo"></div>
-    <div class="estrellas"></div>
-    <div class="resplandor"></div>
-    <div class="rayos"></div>
-    <div class="arco"></div>
-    <div class="ciudad lejos" id="ciudadLejos"></div>
-    <div class="ciudad" id="ciudadCerca"></div>
+    <div class="fondo"></div><div class="estrellas"></div><div class="resplandor"></div><div class="rayos"></div><div class="arco"></div>
+    <div class="ciudad lejos" id="ciudadLejos"></div><div class="ciudad" id="ciudadCerca"></div>
     <div class="pilar p1"></div><div class="pilar p2"></div><div class="pilar p3"></div>
     <div class="pilar p4"></div><div class="pilar p5"></div><div class="pilar p6"></div>
     <div class="piso"></div>
   </div>
 
-  <!-- Contenedor invisible para los <video>: iOS reproduce mejor los videos que están dentro del DOM -->
-  <div id="medios" aria-hidden="true"></div>
-
-  <!--
-    Escena de RA. Parámetros de MindAR:
-    - autoStart: false  -> arrancamos nosotros tras un toque del usuario (requisito de iOS y mejor UX de permisos)
-    - ui*: no           -> desactivamos las pantallas de MindAR; usamos las nuestras (en español)
-    - maxTrack: 1       -> rastrea 1 imagen a la vez: es lo más liviano. Subilo si querés ver varias juntas.
-    - filterMinCF / filterBeta -> suavizado del temblor (ver README, "Ajuste fino")
-    - missTolerance / warmupTolerance -> frames que tolera perder/ganar antes de mostrar u ocultar el contenido
-  -->
-  <a-scene id="escena"
-    mindar-image="imageTargetSrc: ./assets/targets/targets.mind; autoStart: false; uiLoading: no; uiScanning: no; uiError: no; maxTrack: 1; filterMinCF: 0.001; filterBeta: 1000; missTolerance: 5; warmupTolerance: 5"
-    color-space="sRGB"
-    renderer="antialias: false; alpha: true; precision: medium"
-    embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-
-    <!-- El cursor con rayOrigin:mouse convierte cada toque en pantalla en un rayo; solo golpea objetos .clickable -->
-    <a-camera position="0 0 0" look-controls="enabled: false"
-      cursor="fuse: false; rayOrigin: mouse" raycaster="far: 10000; objects: .clickable"></a-camera>
-
-    <!-- Los anclajes (uno por imagen) los crea js/scene-builder.js a partir de js/config.js -->
-  </a-scene>
-
-  <!-- ===== Interfaz (todo en español) ===== -->
+  <!-- La cámara del celular o tablet, detrás del lente -->
+  <video id="cam" playsinline muted autoplay></video>
 
   <!-- Bienvenida -->
   <main id="inicio" class="pantalla" aria-labelledby="titulo-inicio">
@@ -67,15 +32,15 @@
       <div class="evento">IA El Colorado · Expo de Ciencias 2026</div>
       <div class="bienvenidos">Bienvenidos a</div>
       <h1 id="titulo-inicio">Realidad aumentada</h1>
-      <p class="bajada">Apuntá la cámara de tu celular a las imágenes de la muestra y mirá cómo cobran vida.</p>
+      <p class="bajada">Abrí el lente, apuntalo a las fotos impresas y mirá cómo cobran vida.</p>
       <ol class="pasos">
-        <li><span class="num">1</span>Activá la cámara</li>
-        <li><span class="num">2</span>Apuntá a la imagen</li>
-        <li><span class="num">3</span>Tocá y descubrí</li>
+        <li><span class="num">1</span>Abrí el lente</li>
+        <li><span class="num">2</span>Apuntalo a una foto</li>
+        <li><span class="num">3</span>Mirá el video</li>
       </ol>
       <p class="futuro">El futuro no se espera, se aprende.</p>
-      <button id="btn-iniciar" class="boton" type="button">Activar cámara</button>
-      <p class="privacidad">La cámara solo sirve para reconocer las imágenes. El video no sale de tu dispositivo.</p>
+      <button id="btn-iniciar" class="boton" type="button">Abrir el lente</button>
+      <p class="privacidad">La cámara solo sirve para reconocer las fotos. El video de la cámara no sale de tu dispositivo.</p>
     </div>
   </main>
 
@@ -84,13 +49,17 @@
     <p id="carga-texto" role="status">Cargando…</p>
   </div>
 
-  <div id="visor" hidden aria-live="polite">
-    <span class="esquina e1"></span><span class="esquina e2"></span>
-    <span class="esquina e3"></span><span class="esquina e4"></span>
-    <p>Buscando la imagen…</p>
-  </div>
+  <!-- El lente -->
+  <section id="lente" hidden aria-label="Lente de realidad aumentada">
+    <div class="aro"></div>
+    <div class="mira"></div>
+    <div id="contador" aria-live="polite"></div>
+    <p id="lente-texto" role="status">Apuntá el lente a una foto</p>
+  </section>
+  <button id="btn-salir" class="chico" type="button" hidden aria-label="Cerrar el lente">✕ Salir</button>
+  <div id="aviso" hidden role="status"></div>
 
-  <!-- Reproductor: el video se ve a pantalla completa del celular o tablet, sin depender de sostener la cámara -->
+  <!-- Reproductor: el video se ve a pantalla completa del celular o tablet -->
   <section id="reproductor" hidden role="dialog" aria-modal="true" aria-labelledby="rep-titulo">
     <div class="rep-barra">
       <h2 id="rep-titulo"></h2>
@@ -99,14 +68,11 @@
     <div class="rep-marco">
       <video id="rep-video" playsinline loop controls preload="auto"></video>
       <div id="rep-espera" class="spinner" aria-hidden="true"></div>
+      <div id="rep-pronto"><strong>Muy pronto</strong>Pronto vas a ver un video de esta foto.</div>
     </div>
     <p id="rep-nota" role="status"></p>
     <p class="rep-giro">Girá el celular para ver el video más grande.</p>
   </section>
-
-  <button id="btn-salir" type="button" hidden aria-label="Salir de la cámara">✕ Salir</button>
-  <div id="chip" hidden role="status"></div>
-  <div id="aviso" hidden role="status"></div>
 
   <div id="error" class="pantalla" role="alert" hidden>
     <div class="caja">
@@ -115,5 +81,238 @@
       <button id="btn-reintentar" class="boton" type="button">Reintentar</button>
     </div>
   </div>
+
+<script type="module">
+import { FOTOS } from './config.js';
+
+const $ = (id) => document.getElementById(id);
+const cam = $('cam');
+
+/* ======================================================================
+   Ciudad futurista del fondo (decoración: SVG con edificios y ventanas)
+   ====================================================================== */
+function ciudad(id, semilla, colores, altMin, altMax) {
+  let s = semilla; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const W = 1600, H = 400; let x = -20, out = '';
+  while (x < W + 20) {
+    const w = 40 + rnd() * 70, h = altMin + rnd() * (altMax - altMin), y = H - h;
+    const c = colores[Math.floor(rnd() * colores.length)];
+    out += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+    if (rnd() > .72) out += `<rect x="${x + w / 2 - 2}" y="${y - 38}" width="4" height="38" fill="${c}"/><circle cx="${x + w / 2}" cy="${y - 40}" r="3" fill="#ff7a59"/>`;
+    if (rnd() > .8) out += `<rect x="${x}" y="${y}" width="${w}" height="4" fill="#3fd1b5" opacity=".8"/>`;
+    for (let wy = y + 14; wy < H - 10; wy += 18)
+      for (let wx = x + 8; wx < x + w - 8; wx += 14)
+        if (rnd() > .6) out += `<rect x="${wx}" y="${wy}" width="6" height="8" fill="${rnd() > .55 ? '#3fd1b5' : '#f0a63a'}" opacity="${(.55 + rnd() * .45).toFixed(2)}"/>`;
+    x += w + 4 + rnd() * 10;
+  }
+  $(id).innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice">${out}</svg>`;
+}
+ciudad('ciudadLejos', 7,  ['#1c3a40', '#214248', '#183238'], 120, 300);
+ciudad('ciudadCerca', 42, ['#3a2a2a', '#432f2d', '#2f2323'], 70, 230);
+
+/* ======================================================================
+   Pantallas y mensajes
+   ====================================================================== */
+const ERRORES = {
+  inseguro:  ['Falta conexión segura', 'La cámara solo funciona con HTTPS. Abrí la página desde su dirección https://.'],
+  sinCamara: ['Tu navegador no puede usar la cámara', 'Abrí esta página directamente en Chrome (Android) o Safari (iPhone), no desde dentro de WhatsApp, Instagram u otra app.'],
+  denegado:  ['Permiso de cámara denegado', 'Habilitá la cámara para este sitio en los ajustes del navegador y tocá "Reintentar".'],
+  noHayCam:  ['No encontramos una cámara', 'Conectá o habilitá una cámara y tocá "Reintentar".'],
+  ocupada:   ['La cámara está en uso', 'Cerrá otras apps que la estén usando y tocá "Reintentar".'],
+  sinMind:   ['Faltan las fotos de la muestra', 'No se encontró assets/targets/targets.mind en el sitio.'],
+  librerias: ['No se pudo cargar la realidad aumentada', 'Revisá tu conexión a internet y tocá "Reintentar".'],
+  lento:     ['La carga tarda demasiado', 'Revisá tu conexión y tocá "Reintentar".'],
+  generico:  ['No pudimos abrir el lente', 'Recargá la página y probá de nuevo. Si sigue fallando, probá con otro navegador.']
+};
+function errorDeCamara(e) {
+  switch (e && e.name) {
+    case 'NotAllowedError': case 'SecurityError': return ERRORES.denegado;
+    case 'NotFoundError': case 'OverconstrainedError': return ERRORES.noHayCam;
+    case 'NotReadableError': case 'AbortError': return ERRORES.ocupada;
+    default: return ERRORES.generico;
+  }
+}
+function modoCamara(on) {
+  document.body.classList.toggle('ra-activa', on);
+  $('lente').hidden = !on; $('btn-salir').hidden = !on;
+}
+function mostrarError([titulo, detalle]) {
+  detenerAR();
+  $('inicio').hidden = true; $('carga').hidden = true; modoCamara(false);
+  $('error-titulo').textContent = titulo; $('error-detalle').textContent = detalle;
+  $('error').hidden = false;
+}
+let tAviso;
+function aviso(texto, ms = 3500) {
+  const a = $('aviso'); a.textContent = texto; a.hidden = false;
+  clearTimeout(tAviso); tAviso = setTimeout(() => { a.hidden = true; }, ms);
+}
+const carga = (t) => { $('carga-texto').textContent = t; $('carga').hidden = false; };
+
+/* ======================================================================
+   Cámara + reconocimiento (MindAR, archivo local en lib/)
+   ====================================================================== */
+let Controller = null, ctl = null, flujo = null;
+let activo = false;                       // el lente está abierto y reconociendo
+let reproduciendo = false;                // hay un video abierto
+let tDetenido = 0;
+const mostrando = new Set();              // fotos que el lente ve en este momento
+const cerrados = new Map();               // foto -> hasta cuándo no se reabre su video
+const descubiertas = new Set();
+
+async function abrirCamara() {
+  flujo = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+  });
+  cam.srcObject = flujo;
+  await new Promise((ok) => { cam.onloadedmetadata = ok; });
+  await cam.play().catch(() => {});
+}
+
+async function crearControlador() {
+  if (ctl) { try { ctl.dispose(); } catch {} }
+  // MindAR lee width/height del <video> (atributos, no el CSS): si faltan, procesa una imagen vacía.
+  cam.setAttribute('width', cam.videoWidth); cam.setAttribute('height', cam.videoHeight);
+  ctl = new Controller({
+    inputWidth: cam.videoWidth, inputHeight: cam.videoHeight,
+    maxTrack: 1, warmupTolerance: 5, missTolerance: 5,
+    onUpdate: (d) => {
+      if (d.type !== 'updateMatrix') return;
+      if (d.worldMatrix) { if (!mostrando.has(d.targetIndex)) { mostrando.add(d.targetIndex); alEncontrar(d.targetIndex); } }
+      else mostrando.delete(d.targetIndex);
+    }
+  });
+  await ctl.addImageTargets('assets/targets/targets.mind');
+  await ctl.dummyRun(cam);                // precalienta la GPU: la primera detección sale más rápido
+}
+
+function empezarAReconocer() {
+  if (!ctl || !activo) return;
+  const espera = Math.max(0, 500 - (Date.now() - tDetenido));   // que termine el ciclo anterior antes de relanzar
+  setTimeout(() => { if (activo && !reproduciendo) { mostrando.clear(); ctl.processVideo(cam); } }, espera);
+}
+function pararDeReconocer() { if (ctl) ctl.stopProcessVideo(); tDetenido = Date.now(); }
+function detenerAR() {
+  activo = false;
+  try { pararDeReconocer(); } catch {}
+  if (flujo) { flujo.getTracks().forEach((t) => t.stop()); flujo = null; }
+}
+
+/* ======================================================================
+   Encontrar una foto → fijar el lente → abrir el video
+   ====================================================================== */
+function actualizarContador() {
+  $('contador').textContent = `Descubiertas ${descubiertas.size} de ${FOTOS.length}`;
+}
+function alEncontrar(i) {
+  const foto = FOTOS[i];
+  if (!foto || reproduciendo) return;
+  if ((cerrados.get(i) || 0) > Date.now()) return;      // se acaba de cerrar: esperar a que aleje la cámara
+  reproduciendo = true;
+  pararDeReconocer();
+  navigator.vibrate && navigator.vibrate(40);
+  $('lente').classList.add('fijado');
+  $('lente-texto').textContent = `¡Encontrada! ${foto.nombre}`;
+  setTimeout(() => abrirReproductor(i), 700);
+}
+
+const rep = $('rep-video');
+let fotoActual = -1;
+function abrirReproductor(i) {
+  const foto = FOTOS[i]; fotoActual = i;
+  descubiertas.add(i); actualizarContador();
+  $('rep-titulo').textContent = foto.nombre;
+  $('rep-nota').textContent = '';
+  const caja = $('reproductor');
+  caja.classList.toggle('sin-video', !foto.video);
+  caja.hidden = false;
+  $('rep-cerrar').focus({ preventScroll: true });
+  if (!foto.video) return;
+  const espera = $('rep-espera'), nota = $('rep-nota');
+  espera.hidden = false;
+  rep.onplaying = () => { espera.hidden = true; };
+  rep.onwaiting = () => { espera.hidden = false; };
+  rep.onerror = () => { espera.hidden = true; nota.textContent = 'No se pudo cargar el video. Revisá tu conexión y volvé a intentar.'; };
+  rep.onvolumechange = () => { if (!rep.muted) nota.textContent = ''; };
+  rep.muted = false;
+  rep.src = foto.video;
+  rep.play().catch(() => {                              // el navegador exige un toque para el sonido
+    rep.muted = true; nota.textContent = 'Tocá el video para activar el sonido.';
+    rep.play().catch(() => { espera.hidden = true; });
+  });
+}
+
+async function cerrarReproductor() {
+  rep.pause(); rep.removeAttribute('src'); rep.load();
+  $('reproductor').hidden = true;
+  if (fotoActual >= 0) cerrados.set(fotoActual, Date.now() + 6000);
+  fotoActual = -1;
+  $('lente').classList.remove('fijado');
+  $('lente-texto').textContent = 'Apuntá el lente a otra foto';
+  if (descubiertas.size === FOTOS.length) aviso('¡Descubriste todas las fotos!', 5000);
+  reproduciendo = false;
+  // Si se giró el celular mientras miraba el video, la cámara cambió de tamaño: hay que recrear el reconocedor.
+  if (ctl && (ctl.inputWidth !== cam.videoWidth || ctl.inputHeight !== cam.videoHeight)) {
+    carga('Ajustando la cámara…');
+    try { await crearControlador(); } catch { return mostrarError(ERRORES.generico); }
+    $('carga').hidden = true;
+  }
+  empezarAReconocer();
+}
+$('rep-cerrar').addEventListener('click', cerrarReproductor);
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && reproduciendo && !$('reproductor').hidden) cerrarReproductor(); });
+
+/* Si cambia el tamaño de la cámara con el lente abierto (rotación), se recrea el reconocedor. */
+cam.addEventListener('resize', async () => {
+  if (!activo || reproduciendo || !ctl) return;
+  if (ctl.inputWidth === cam.videoWidth && ctl.inputHeight === cam.videoHeight) return;
+  pararDeReconocer();
+  try { await crearControlador(); } catch { return mostrarError(ERRORES.generico); }
+  empezarAReconocer();
+});
+
+/* Ahorro de batería: sin pestaña visible se pausa el reconocimiento. */
+document.addEventListener('visibilitychange', () => {
+  if (!activo || reproduciendo) return;
+  document.hidden ? pararDeReconocer() : empezarAReconocer();
+});
+
+/* ======================================================================
+   Arranque
+   ====================================================================== */
+async function iniciar() {
+  $('inicio').hidden = true;
+  carga('Preparando…');
+  if (!window.isSecureContext) return mostrarError(ERRORES.inseguro);
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return mostrarError(ERRORES.sinCamara);
+
+  try { const r = await fetch('assets/targets/targets.mind', { method: 'HEAD', cache: 'no-store' }); if (!r.ok) throw 0; }
+  catch { return mostrarError(ERRORES.sinMind); }
+
+  const vigilante = setTimeout(() => mostrarError(ERRORES.lento), 40000);
+  try {
+    carga('Cargando el reconocedor…');
+    if (!Controller) Controller = (await import('./lib/mindar-image.prod.js')).Controller;
+  } catch (e) { clearTimeout(vigilante); console.error(e); return mostrarError(ERRORES.librerias); }
+
+  try { carga('Esperando permiso de cámara…'); await abrirCamara(); }
+  catch (e) { clearTimeout(vigilante); return mostrarError(errorDeCamara(e)); }
+
+  try { carga('Preparando las fotos…'); await crearControlador(); }
+  catch (e) { clearTimeout(vigilante); console.error(e); return mostrarError(ERRORES.generico); }
+  clearTimeout(vigilante);
+
+  activo = true;
+  $('carga').hidden = true;
+  actualizarContador();
+  modoCamara(true);
+  ctl.processVideo(cam);
+}
+
+$('btn-iniciar').addEventListener('click', iniciar);
+$('btn-reintentar').addEventListener('click', () => location.reload());
+$('btn-salir').addEventListener('click', () => location.reload());   // recargar libera la cámara y vuelve a la bienvenida
+</script>
 </body>
 </html>
