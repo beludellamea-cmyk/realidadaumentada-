@@ -19,8 +19,8 @@
     <div class="piso"></div>
   </div>
 
-  <!-- La cámara del celular o tablet, detrás del lente -->
-  <video id="cam" playsinline muted autoplay></video>
+  <!-- Acá se dibuja la cámara y la realidad aumentada (MindAR + three.js agregan el video y el lienzo) -->
+  <div id="ra"></div>
 
   <!-- Bienvenida -->
   <main id="inicio" class="pantalla" aria-labelledby="titulo-inicio">
@@ -56,6 +56,8 @@
     <div id="contador" aria-live="polite"></div>
     <p id="lente-texto" role="status">Apuntá el lente a una foto</p>
   </section>
+  <div id="chip" hidden role="status"></div>
+  <button id="btn-grande" class="grande" type="button" hidden>⤢ Ver más grande</button>
   <button id="btn-salir" class="chico" type="button" hidden aria-label="Cerrar el lente">✕ Salir</button>
   <div id="aviso" hidden role="status"></div>
 
@@ -84,9 +86,9 @@
 
 <script type="module">
 import { FOTOS } from './config.js';
+import * as THREE from './lib/three.module.min.js';
 
 const $ = (id) => document.getElementById(id);
-const cam = $('cam');
 
 /* ======================================================================
    Ciudad futurista del fondo (decoración: SVG con edificios y ventanas)
@@ -137,8 +139,10 @@ function modoCamara(on) {
   $('lente').hidden = !on; $('btn-salir').hidden = !on;
 }
 function mostrarError([titulo, detalle]) {
-  detenerAR();
+  try { if (mt) mt.stop(); } catch {}
+  activo = false;
   $('inicio').hidden = true; $('carga').hidden = true; modoCamara(false);
+  $('chip').hidden = true; $('btn-grande').hidden = true;
   $('error-titulo').textContent = titulo; $('error-detalle').textContent = detalle;
   $('error').hidden = false;
 }
@@ -150,138 +154,190 @@ function aviso(texto, ms = 3500) {
 const carga = (t) => { $('carga-texto').textContent = t; $('carga').hidden = false; };
 
 /* ======================================================================
-   Cámara + reconocimiento (MindAR, archivo local en lib/)
+   Realidad aumentada: el video aparece SOBRE la foto, anclado a ella
    ====================================================================== */
-let Controller = null, ctl = null, flujo = null;
-let activo = false;                       // el lente está abierto y reconociendo
-let reproduciendo = false;                // hay un video abierto
-let tDetenido = 0;
-const mostrando = new Set();              // fotos que el lente ve en este momento
-const cerrados = new Map();               // foto -> hasta cuándo no se reabre su video
+// Clip mudo de 0,4 s: se reproduce al tocar "Abrir el lente" para que el navegador deje reproducir videos con sonido después.
+const CLIP_MUDO = 'data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAX6bW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAAZAAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAqN0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAAZAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAEAAAABAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAGQAAAIAAABAAAAAAIbbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAoAAAAEABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABxm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAYZzdGJsAAAAwnN0c2QAAAAAAAAAAQAAALJhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAEAAQABIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAOGF2Y0MBZAAK/+EAGmdkAAqscgREJsBEAAADAAQAAAMAUDxIlhGAAQAHaOhDg5LIsP34+AAAAAAQcGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAA7dAAAO3QAAAAYc3R0cwAAAAAAAAABAAAABAAABAAAAAAUc3RzcwAAAAAAAAABAAAAAQAAAChjdHRzAAAAAAAAAAMAAAABAAAIAAAAAAEAABAAAAAAAgAABAAAAAAoc3RzYwAAAAAAAAACAAAAAQAAAAIAAAABAAAAAgAAAAEAAAABAAAAJHN0c3oAAAAAAAAAAAAAAAQAAALTAAAADQAAAAwAAAANAAAAHHN0Y28AAAAAAAAAAwAABioAAAkfAAAJNwAAAoF0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAACAAAAAAAAAZAAAAAAAAAAAAAAAAEBAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAGQAAAEAAABAAAAAAH5bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABWIgAAJnRVxAAAAAAALWhkbHIAAAAAAAAAAHNvdW4AAAAAAAAAAAAAAABTb3VuZEhhbmRsZXIAAAABpG1pbmYAAAAQc21oZAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABaHN0YmwAAAB+c3RzZAAAAAAAAAABAAAAbm1wNGEAAAAAAAAAAQAAAAAAAAAAAAEAEAAAAABWIgAAAAAANmVzZHMAAAAAA4CAgCUAAgAEgICAF0AVAAAAAAAfQAAAA/0FgICABROIVuUABoCAgAECAAAAFGJ0cnQAAAAAAAAfQAAAA/0AAAAgc3R0cwAAAAAAAAACAAAACQAABAAAAAABAAACdAAAADRzdHNjAAAAAAAAAAMAAAABAAAAAQAAAAEAAAACAAAAAwAAAAEAAAADAAAABgAAAAEAAAA8c3RzegAAAAAAAAAAAAAACgAAABUAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAEAAAABAAAAAQAAAAcc3RjbwAAAAAAAAADAAAJCgAACSsAAAlEAAAAGnNncGQBAAAAcm9sbAAAAAIAAAAB//8AAAAcc2JncAAAAAByb2xsAAAAAQAAAAoAAAABAAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpcmFwcGwAAAAAAAAAAAAAAAAtaWxzdAAAACWpdG9vAAAAHWRhdGEAAAABAAAAAExhdmY2MC4xNi4xMDAAAAAIZnJlZQAAAzptZGF0AAACsAYF//+s3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE2NCByMzEwOCAzMWUxOWY5IC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAyMyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTE2IGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDM6MHgxMzMgbWU9dW1oIHN1Ym1lPTEwIHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MjQgY2hyb21hX21lPTEgdHJlbGxpcz0yIDh4OGRjdD0xIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MiBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTggYl9weXJhbWlkPTIgYl9hZGFwdD0yIGJfYmlhcz0wIGRpcmVjdD0zIHdlaWdodGI9MSBvcGVuX2dvcD0wIHdlaWdodHA9MiBrZXlpbnQ9MjUwIGtleWludF9taW49MTAgc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD02MCByYz1jcmYgbWJ0cmVlPTEgY3JmPTQwLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFwc3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAAAbZYiBAAf//spPgUudYVBKnhZLLuQCcPHfR+FNAAAACUGaCG2Ib/8Cxt4CAExhdmM2MC4zMS4xMDIAAjBADgAAAAhBnhAnEN9GQQEYIAcBGCAHARggBwAAAAkBnhhNSG//RkABGCAHARggBwEYIAcBGCAHARggBwEYIAc=';
+
+let mt = null;                       // MindARThree
+let activo = false;                  // el lente está abierto
+let ampliado = false;                // el video se está viendo en pantalla completa
+let actual = -1;                     // foto que se está viendo en AR
 const descubiertas = new Set();
+const paneles = [];                  // por foto: { grupo, foto, video, borde }
 
-async function abrirCamara() {
-  flujo = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-  });
-  cam.srcObject = flujo;
-  await new Promise((ok) => { cam.onloadedmetadata = ok; });
-  await cam.play().catch(() => {});
+// Un único <video> compartido: solo se ve una foto a la vez, y así solo se descarga el video que hace falta.
+const vid = document.createElement('video');
+vid.playsInline = true; vid.setAttribute('playsinline', ''); vid.setAttribute('webkit-playsinline', '');
+vid.loop = true; vid.preload = 'auto'; vid.crossOrigin = 'anonymous';
+vid.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:0;top:0';
+document.body.appendChild(vid);
+
+let texVideo = null;
+const cargadorTex = new THREE.TextureLoader();
+
+function texturaTexto(titulo, detalle) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 1024;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(10,27,31,.94)'; g.fillRect(0, 0, 1024, 1024);
+  g.strokeStyle = '#f0a63a'; g.lineWidth = 14; g.setLineDash([46, 30]); g.strokeRect(40, 40, 944, 944);
+  g.setLineDash([]); g.textAlign = 'center'; g.fillStyle = '#f0a63a';
+  g.font = 'bold 120px Georgia, serif'; g.fillText(titulo, 512, 490);
+  g.fillStyle = '#f4efe6'; g.font = '56px system-ui, sans-serif';
+  detalle.split('\n').forEach((t, k) => g.fillText(t, 512, 590 + k * 70));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-async function crearControlador() {
-  if (ctl) { try { ctl.dispose(); } catch {} }
-  // MindAR lee width/height del <video> (atributos, no el CSS): si faltan, procesa una imagen vacía.
-  cam.setAttribute('width', cam.videoWidth); cam.setAttribute('height', cam.videoHeight);
-  ctl = new Controller({
-    inputWidth: cam.videoWidth, inputHeight: cam.videoHeight,
-    maxTrack: 1, warmupTolerance: 5, missTolerance: 5,
-    onUpdate: (d) => {
-      if (d.type !== 'updateMatrix') return;
-      if (d.worldMatrix) { if (!mostrando.has(d.targetIndex)) { mostrando.add(d.targetIndex); alEncontrar(d.targetIndex); } }
-      else mostrando.delete(d.targetIndex);
+/** Recorta el video para que cubra el panel sin deformarse (como object-fit: cover). */
+function ajustarRecorte(tex, proporcionPanel) {
+  const w = vid.videoWidth, h = vid.videoHeight; if (!w || !h) return;
+  const rv = w / h;
+  tex.repeat.set(1, 1); tex.offset.set(0, 0);
+  if (rv > proporcionPanel) { tex.repeat.x = proporcionPanel / rv; tex.offset.x = (1 - tex.repeat.x) / 2; }
+  else { tex.repeat.y = rv / proporcionPanel; tex.offset.y = (1 - tex.repeat.y) / 2; }
+}
+
+function construirPaneles() {
+  texVideo = new THREE.VideoTexture(vid);
+  texVideo.colorSpace = THREE.SRGBColorSpace;
+  texVideo.minFilter = THREE.LinearFilter; texVideo.generateMipmaps = false;
+
+  FOTOS.forEach((f, i) => {
+    const [w, h] = mt.controller.markerDimensions[i];       // tamaño de la foto reconocida
+    const alto = h / w;                                      // el ancho vale 1
+    const ancla = mt.addAnchor(i);
+    const grupo = new THREE.Group(); grupo.visible = false; ancla.group.add(grupo);
+
+    // Marco dorado detrás de todo
+    const borde = new THREE.Mesh(new THREE.PlaneGeometry(1.05, alto + 0.05),
+      new THREE.MeshBasicMaterial({ color: 0xf0a63a, transparent: true, opacity: 0.95 }));
+    borde.position.z = -0.001; grupo.add(borde);
+
+    const geo = new THREE.PlaneGeometry(1, alto);
+    let foto = null, video = null;
+    if (f.video) {
+      // 1.º la foto misma (para que no haya "saltos" mientras carga el video); 2.º el video encima
+      foto = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
+      foto.position.z = 0.001; grupo.add(foto);
+      video = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: texVideo, toneMapped: false }));
+      video.position.z = 0.002; video.visible = false; grupo.add(video);
+    } else {
+      const t = texturaTexto('Muy pronto', 'Pronto vas a ver\nun video de esta foto.');
+      foto = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: t, toneMapped: false }));
+      foto.position.z = 0.001; grupo.add(foto);
     }
+    paneles[i] = { grupo, foto, video, borde, alto, cargada: false };
+
+    ancla.onTargetFound = () => alEncontrar(i);
+    ancla.onTargetLost = () => alPerder(i);
   });
-  await ctl.addImageTargets('assets/targets/targets.mind');
-  await ctl.dummyRun(cam);                // precalienta la GPU: la primera detección sale más rápido
 }
 
-function empezarAReconocer() {
-  if (!ctl || !activo) return;
-  const espera = Math.max(0, 500 - (Date.now() - tDetenido));   // que termine el ciclo anterior antes de relanzar
-  setTimeout(() => { if (activo && !reproduciendo) { mostrando.clear(); ctl.processVideo(cam); } }, espera);
+function cargarFoto(i) {
+  const p = paneles[i]; if (!p || p.cargada || !FOTOS[i].video) return;
+  p.cargada = true;
+  cargadorTex.load(FOTOS[i].imagen, (t) => { t.colorSpace = THREE.SRGBColorSpace; p.foto.material.map = t; p.foto.material.needsUpdate = true; });
 }
-function pararDeReconocer() { if (ctl) ctl.stopProcessVideo(); tDetenido = Date.now(); }
-function detenerAR() {
-  activo = false;
-  try { pararDeReconocer(); } catch {}
-  if (flujo) { flujo.getTracks().forEach((t) => t.stop()); flujo = null; }
+
+let tAparece = 0;
+function alEncontrar(i) {
+  const f = FOTOS[i], p = paneles[i];
+  actual = i;
+  descubiertas.add(i); actualizarContador();
+  navigator.vibrate && navigator.vibrate(40);
+  p.grupo.visible = true; p.grupo.scale.setScalar(0.85); tAparece = performance.now();
+  $('lente').classList.add('viendo');
+  $('chip').textContent = f.nombre; $('chip').hidden = false;
+  if (!f.video) { $('btn-grande').hidden = true; return; }
+  cargarFoto(i);
+  $('btn-grande').hidden = false;
+  reproducirEnAR(i);
+}
+
+function alPerder(i) {
+  if (actual !== i) return;
+  actual = -1;
+  paneles[i].grupo.visible = false;
+  if (paneles[i].video) paneles[i].video.visible = false;
+  vid.pause();
+  $('lente').classList.remove('viendo');
+  $('chip').hidden = true; $('btn-grande').hidden = true; $('aviso').hidden = true;
+}
+
+function reproducirEnAR(i) {
+  const f = FOTOS[i], p = paneles[i];
+  const url = new URL(f.video, location.href).href;
+  if (vid.src !== url) { vid.src = url; p.video.visible = false; }
+  const mostrar = () => {
+    if (actual !== i) return;
+    ajustarRecorte(texVideo, 1 / p.alto);
+    p.video.visible = true;
+  };
+  if (vid.readyState >= 2 && vid.src === url) mostrar();
+  vid.onplaying = mostrar;
+  vid.onerror = () => aviso('No se pudo cargar el video. Revisá tu conexión.', 4000);
+  vid.muted = false;
+  vid.play().catch(() => {                              // el navegador exige un toque para el sonido
+    vid.muted = true; aviso('Tocá la pantalla para activar el sonido.', 5000);
+    vid.play().catch(() => {});
+  });
+}
+
+// Un toque en cualquier parte activa el sonido si el navegador lo había bloqueado.
+addEventListener('pointerdown', () => { if (activo && vid.muted && !vid.paused) { vid.muted = false; $('aviso').hidden = true; } });
+
+function actualizarContador() { $('contador').textContent = `Descubiertas ${descubiertas.size} de ${FOTOS.length}`; }
+
+/* Animación de aparición (la foto "salta" un poquito hacia adelante) */
+function animar() {
+  if (actual >= 0) {
+    const k = Math.min(1, (performance.now() - tAparece) / 380);
+    const e = 1 - Math.pow(1 - k, 3);
+    paneles[actual].grupo.scale.setScalar(0.85 + 0.15 * e);
+  }
+  mt.renderer.render(mt.scene, mt.camera);
 }
 
 /* ======================================================================
-   Encontrar una foto → fijar el lente → abrir el video
+   Ver más grande (pantalla completa, sigue desde el mismo segundo)
    ====================================================================== */
-function actualizarContador() {
-  $('contador').textContent = `Descubiertas ${descubiertas.size} de ${FOTOS.length}`;
-}
-function alEncontrar(i) {
-  const foto = FOTOS[i];
-  if (!foto || reproduciendo) return;
-  if ((cerrados.get(i) || 0) > Date.now()) return;      // se acaba de cerrar: esperar a que aleje la cámara
-  reproduciendo = true;
-  pararDeReconocer();
-  navigator.vibrate && navigator.vibrate(40);
-  $('lente').classList.add('fijado');
-  $('lente-texto').textContent = `¡Encontrada! ${foto.nombre}`;
-  setTimeout(() => abrirReproductor(i), 700);
-}
-
 const rep = $('rep-video');
-let fotoActual = -1;
-function abrirReproductor(i) {
-  const foto = FOTOS[i]; fotoActual = i;
-  descubiertas.add(i); actualizarContador();
-  $('rep-titulo').textContent = foto.nombre;
-  $('rep-nota').textContent = '';
-  const caja = $('reproductor');
-  caja.classList.toggle('sin-video', !foto.video);
-  caja.hidden = false;
+function abrirGrande() {
+  if (actual < 0 || !FOTOS[actual].video) return;
+  ampliado = true;
+  const f = FOTOS[actual], t = vid.currentTime;
+  $('rep-titulo').textContent = f.nombre; $('rep-nota').textContent = '';
+  $('reproductor').classList.remove('sin-video'); $('reproductor').hidden = false;
   $('rep-cerrar').focus({ preventScroll: true });
-  if (!foto.video) return;
-  const espera = $('rep-espera'), nota = $('rep-nota');
-  espera.hidden = false;
+  const espera = $('rep-espera'); espera.hidden = false;
   rep.onplaying = () => { espera.hidden = true; };
   rep.onwaiting = () => { espera.hidden = false; };
-  rep.onerror = () => { espera.hidden = true; nota.textContent = 'No se pudo cargar el video. Revisá tu conexión y volvé a intentar.'; };
-  rep.onvolumechange = () => { if (!rep.muted) nota.textContent = ''; };
-  rep.muted = false;
-  rep.src = foto.video;
-  rep.play().catch(() => {                              // el navegador exige un toque para el sonido
-    rep.muted = true; nota.textContent = 'Tocá el video para activar el sonido.';
-    rep.play().catch(() => { espera.hidden = true; });
-  });
+  rep.onerror = () => { espera.hidden = true; $('rep-nota').textContent = 'No se pudo cargar el video.'; };
+  vid.pause();
+  rep.muted = false; rep.src = f.video;
+  rep.addEventListener('loadedmetadata', () => { try { rep.currentTime = t; } catch {} }, { once: true });
+  rep.play().catch(() => { rep.muted = true; $('rep-nota').textContent = 'Tocá el video para activar el sonido.'; rep.play().catch(() => {}); });
 }
-
-async function cerrarReproductor() {
+function cerrarGrande() {
+  const t = rep.currentTime;
   rep.pause(); rep.removeAttribute('src'); rep.load();
-  $('reproductor').hidden = true;
-  if (fotoActual >= 0) cerrados.set(fotoActual, Date.now() + 6000);
-  fotoActual = -1;
-  $('lente').classList.remove('fijado');
-  $('lente-texto').textContent = 'Apuntá el lente a otra foto';
-  if (descubiertas.size === FOTOS.length) aviso('¡Descubriste todas las fotos!', 5000);
-  reproduciendo = false;
-  // Si se giró el celular mientras miraba el video, la cámara cambió de tamaño: hay que recrear el reconocedor.
-  if (ctl && (ctl.inputWidth !== cam.videoWidth || ctl.inputHeight !== cam.videoHeight)) {
-    carga('Ajustando la cámara…');
-    try { await crearControlador(); } catch { return mostrarError(ERRORES.generico); }
-    $('carga').hidden = true;
-  }
-  empezarAReconocer();
+  $('reproductor').hidden = true; ampliado = false;
+  if (actual >= 0) { try { vid.currentTime = t; } catch {} vid.muted = false; vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); }); }
 }
-$('rep-cerrar').addEventListener('click', cerrarReproductor);
-addEventListener('keydown', (e) => { if (e.key === 'Escape' && reproduciendo && !$('reproductor').hidden) cerrarReproductor(); });
+$('btn-grande').addEventListener('click', abrirGrande);
+$('rep-cerrar').addEventListener('click', cerrarGrande);
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && ampliado) cerrarGrande(); });
 
-/* Si cambia el tamaño de la cámara con el lente abierto (rotación), se recrea el reconocedor. */
-cam.addEventListener('resize', async () => {
-  if (!activo || reproduciendo || !ctl) return;
-  if (ctl.inputWidth === cam.videoWidth && ctl.inputHeight === cam.videoHeight) return;
-  pararDeReconocer();
-  try { await crearControlador(); } catch { return mostrarError(ERRORES.generico); }
-  empezarAReconocer();
-});
-
-/* Ahorro de batería: sin pestaña visible se pausa el reconocimiento. */
-document.addEventListener('visibilitychange', () => {
-  if (!activo || reproduciendo) return;
-  document.hidden ? pararDeReconocer() : empezarAReconocer();
-});
+/* Ahorro de batería: sin pestaña visible se pausa el video. */
+document.addEventListener('visibilitychange', () => { if (document.hidden) vid.pause(); else if (activo && actual >= 0 && !ampliado) vid.play().catch(() => {}); });
 
 /* ======================================================================
    Arranque
    ====================================================================== */
 async function iniciar() {
+  // "Desbloquea" la reproducción con sonido: tiene que hacerse dentro del toque del usuario.
+  vid.muted = true; vid.src = CLIP_MUDO; vid.play().then(() => { vid.pause(); vid.muted = false; }).catch(() => {});
+
   $('inicio').hidden = true;
   carga('Preparando…');
   if (!window.isSecureContext) return mostrarError(ERRORES.inseguro);
@@ -290,24 +346,35 @@ async function iniciar() {
   try { const r = await fetch('assets/targets/targets.mind', { method: 'HEAD', cache: 'no-store' }); if (!r.ok) throw 0; }
   catch { return mostrarError(ERRORES.sinMind); }
 
-  const vigilante = setTimeout(() => mostrarError(ERRORES.lento), 40000);
+  // Se pide la cámara una vez para poder explicar bien cualquier problema de permisos.
   try {
-    carga('Cargando el reconocedor…');
-    if (!Controller) Controller = (await import('./lib/mindar-image.prod.js')).Controller;
-  } catch (e) { clearTimeout(vigilante); console.error(e); return mostrarError(ERRORES.librerias); }
+    carga('Esperando permiso de cámara…');
+    const prueba = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+    prueba.getTracks().forEach((t) => t.stop());
+  } catch (e) { return mostrarError(errorDeCamara(e)); }
 
-  try { carga('Esperando permiso de cámara…'); await abrirCamara(); }
-  catch (e) { clearTimeout(vigilante); return mostrarError(errorDeCamara(e)); }
+  const vigilante = setTimeout(() => mostrarError(ERRORES.lento), 45000);
+  let MindARThree;
+  try { carga('Cargando el reconocedor…'); ({ MindARThree } = await import('./lib/mindar-image-three.prod.js')); }
+  catch (e) { clearTimeout(vigilante); console.error(e); return mostrarError(ERRORES.librerias); }
 
-  try { carga('Preparando las fotos…'); await crearControlador(); }
-  catch (e) { clearTimeout(vigilante); console.error(e); return mostrarError(ERRORES.generico); }
+  try {
+    carga('Preparando las fotos…');
+    mt = new MindARThree({
+      container: $('ra'), imageTargetSrc: 'assets/targets/targets.mind', maxTrack: 1,
+      uiLoading: 'no', uiScanning: 'no', uiError: 'no',
+      filterMinCF: 0.001, filterBeta: 1000, warmupTolerance: 5, missTolerance: 8
+    });
+    await mt.start();                                        // abre la cámara y carga las fotos
+    construirPaneles();
+    mt.renderer.setAnimationLoop(animar);
+  } catch (e) { clearTimeout(vigilante); console.error(e); return mostrarError(e && e.name ? errorDeCamara(e) : ERRORES.generico); }
   clearTimeout(vigilante);
 
   activo = true;
   $('carga').hidden = true;
   actualizarContador();
   modoCamara(true);
-  ctl.processVideo(cam);
 }
 
 $('btn-iniciar').addEventListener('click', iniciar);

@@ -55,8 +55,8 @@ body.ra-activa .escena { display: none; }
 @media (max-width: 700px) { .pilar { display: none; } }
 
 /* ====== Cámara ====== */
-#cam { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; background: #000; }
-body:not(.ra-activa) #cam { visibility: hidden; }
+#ra { position: fixed; inset: 0; z-index: 1; overflow: hidden; background: #000; }
+body:not(.ra-activa) #ra { visibility: hidden; }
 
 /* ====== Pantallas (bienvenida, carga, error) ====== */
 .pantalla {
@@ -129,6 +129,15 @@ body:not(.ra-activa) #cam { visibility: hidden; }
 #lente.fijado .aro { border-color: #fff; box-shadow: 0 0 0 100vmax rgba(4,12,14,.6), 0 0 60px rgba(240,166,58,.95), inset 0 0 60px rgba(240,166,58,.5); animation: fijar .7s ease; }
 @keyframes fijar { 40% { transform: translate(-50%, -50%) scale(1.04); } }
 #lente.fijado .aro::after { animation: none; background: rgba(240,166,58,.18); }
+
+/* Cuando una foto está siendo reconocida, el lente se retira para dejar ver el video sobre la foto */
+.aro, .mira, #lente-texto { transition: opacity .3s; }
+#lente.viendo .aro, #lente.viendo .mira, #lente.viendo #lente-texto, #lente.viendo #contador { opacity: 0; }
+#chip { position: fixed; z-index: 15; left: 50%; transform: translateX(-50%); top: calc(1rem + var(--seguro-sup)); max-width: 46vw; text-align: center;
+  padding: .5rem .95rem; border-radius: 999px; font-size: .9rem; font-weight: 800; background: var(--oro); color: #2b1a05; box-shadow: 0 0 22px rgba(240,166,58,.6); pointer-events: none; }
+.grande { position: fixed; z-index: 16; left: 50%; transform: translateX(-50%); bottom: calc(1.4rem + var(--seguro-inf)); font: inherit; font-weight: 800; font-size: 1rem;
+  padding: .8rem 1.3rem; border-radius: 999px; cursor: pointer; border: 0; color: #2b1a05; background: var(--oro); box-shadow: 0 0 0 4px rgba(240,166,58,.25), 0 0 28px rgba(240,166,58,.55); }
+.grande:focus-visible { outline: 4px solid var(--teal); outline-offset: 4px; }
 
 #lente-texto { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(1.6rem + var(--seguro-inf)); margin: 0; max-width: 90vw; text-align: center;
   padding: .6rem 1.1rem; border-radius: 999px; background: rgba(10,27,31,.86); border: 1px solid var(--oro); font-size: .98rem; color: var(--oro2); }

@@ -1,14 +1,15 @@
 # Realidad aumentada · IA El Colorado
 
-Página web de realidad aumentada para la Expo de Ciencias 2026. Se abre en el celular o la tablet, se activa la cámara y, al apuntar el **lente** a una de las fotos impresas, se abre su video a pantalla completa.
+Página web de realidad aumentada para la Expo de Ciencias 2026. Se abre en el celular o la tablet, se activa la cámara y, al apuntar el **lente** a una de las fotos impresas, el video aparece **sobre la foto**, anclado a ella y reproduciéndose (realidad aumentada de verdad).
 
 Dirección (con GitHub Pages activado): `https://beludellamea-cmyk.github.io/realidadaumentada-/`
 
 ## Cómo se usa
 1. Abrir la página en Chrome (Android) o Safari (iPhone) — no desde WhatsApp ni Instagram.
 2. Tocar **Abrir el lente** y permitir la cámara.
-3. Apuntar a una foto impresa con buena luz, a unos 20–60 cm. El lente la reconoce y abre el video.
-4. **✕ Cerrar** vuelve al lente para buscar otra foto. **✕ Salir** vuelve a la bienvenida.
+3. Apuntar a una foto impresa con buena luz, a unos 20–60 cm. El lente la reconoce y el video empieza a reproducirse encima de la foto.
+4. Si la foto sale de cuadro, el video se pausa; al volver a apuntarla, sigue. Se puede apuntar a otra foto sin tocar nada.
+5. **⤢ Ver más grande** (opcional) pasa el video a pantalla completa y sigue desde el mismo segundo. **✕ Salir** vuelve a la bienvenida.
 
 ## Archivos
 ```
@@ -18,7 +19,7 @@ config.js             ← lista de fotos y sus videos (lo único que se edita)
 assets/images/        las 10 fotos originales (para imprimir)
 assets/videos/        los videos
 assets/targets/       targets.mind: "huella" de las fotos para reconocerlas
-lib/                  MindAR (reconocimiento de imágenes, licencia MIT)
+lib/                  MindAR + three.js (reconocimiento de imágenes y dibujo en 3D, licencia MIT)
 img/                  logos
 ```
 
